@@ -101,12 +101,16 @@ class ObjectDetectionManager: ObservableObject {
                    label.confidence > 0.3,
                    isMatchingTarget(label.identifier, target: targetObject) {
                     
+                    print("🎯 Object Detection - Found: \(label.identifier) (confidence: \(label.confidence)) matching target: \(targetObject)")
+                    
                     let boundingBox = objectObservation.boundingBox
                     let centerX = boundingBox.midX
                     let centerY = boundingBox.midY
                     
                     let azimuth = calculateAzimuth(from: centerX)
                     let distance = estimateDistance(from: boundingBox)
+                    
+                    print("🎯 Object Position - Azimuth: \(azimuth)°, Distance: \(distance)")
                     
                     let detectedObject = DetectedObject(
                         label: label.identifier,
@@ -122,6 +126,8 @@ class ObjectDetectionManager: ObservableObject {
                 if classificationObservation.confidence > 0.3,
                    isMatchingTarget(classificationObservation.identifier, target: targetObject) {
                     
+                    print("🎯 Classification - Found: \(classificationObservation.identifier) (confidence: \(classificationObservation.confidence)) matching target: \(targetObject)")
+                    
                     let detectedObject = DetectedObject(
                         label: classificationObservation.identifier,
                         confidence: classificationObservation.confidence,
@@ -130,6 +136,7 @@ class ObjectDetectionManager: ObservableObject {
                         distance: 1.0
                     )
                     
+                    print("🎯 Classification Position - Center (no spatial info available)")
                     detectedObjects.append(detectedObject)
                 }
             }
@@ -144,8 +151,11 @@ class ObjectDetectionManager: ObservableObject {
         let detectedLower = detected.lowercased()
         let targetWords = target.lowercased().components(separatedBy: " ")
         
+        print("🔍 Matching Check - Detected: '\(detected)', Target: '\(target)'")
+        
         for word in targetWords {
             if detectedLower.contains(word) {
+                print("🔍 Direct Match Found - Word: '\(word)' in '\(detected)'")
                 return true
             }
         }
@@ -153,10 +163,12 @@ class ObjectDetectionManager: ObservableObject {
         let synonyms = getSynonyms(for: target.lowercased())
         for synonym in synonyms {
             if detectedLower.contains(synonym) {
+                print("🔍 Synonym Match Found - Synonym: '\(synonym)' in '\(detected)'")
                 return true
             }
         }
         
+        print("🔍 No Match Found - '\(detected)' does not match '\(target)'")
         return false
     }
     
