@@ -4,7 +4,7 @@ Originally inspired by co-designers at the MIT Assistive Tech Club, this app is 
 It includes accessibility features such as
 - text-to-speech input
 - voice-over during object recognition 
-- spatial hints for distance and direction of the object
+- spatial hints for locating (supports the apple Dynamic Head Tracking feature on applicable devices)
 - start-over with gesture
 
 It is built with a simple iOS native pipeline, integrating coreML, ARkit, and NLEmbedding. 
