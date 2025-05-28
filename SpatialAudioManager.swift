@@ -23,8 +23,11 @@ class SpatialAudioManager: ObservableObject {
         audioEngine.attach(audioPlayerNode)
         audioEngine.attach(audioEnvironment)
         
-        audioEngine.connect(audioPlayerNode, to: audioEnvironment, format: nil)
-        audioEngine.connect(audioEnvironment, to: audioEngine.mainMixerNode, format: nil)
+        // Use explicit format to ensure channel compatibility
+        let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)
+        
+        audioEngine.connect(audioPlayerNode, to: audioEnvironment, format: format)
+        audioEngine.connect(audioEnvironment, to: audioEngine.mainMixerNode, format: format)
         
         audioEnvironment.listenerPosition = AVAudio3DPoint(x: 0, y: 0, z: 0)
         audioEnvironment.listenerVectorOrientation = AVAudio3DVectorOrientation(
@@ -73,10 +76,21 @@ class SpatialAudioManager: ObservableObject {
         stopSound()
         
         let radians = azimuth * Float.pi / 180.0
-        let x = sin(radians) * distance
-        let z = -cos(radians) * distance
+        let clampedDistance = max(0.5, min(5.0, distance)) // Clamp distance for better audio positioning
+        let x = sin(radians) * clampedDistance
+        let z = -cos(radians) * clampedDistance
         
         audioPlayerNode.position = AVAudio3DPoint(x: x, y: 0, z: z)
+        
+        // Ensure audio engine is running
+        if !audioEngine.isRunning {
+            do {
+                try audioEngine.start()
+            } catch {
+                print("🔊 Failed to start audio engine: \(error)")
+                return
+            }
+        }
         
         audioPlayerNode.scheduleBuffer(buffer, at: nil, options: .loops) { [weak self] in
             DispatchQueue.main.async {
@@ -84,14 +98,30 @@ class SpatialAudioManager: ObservableObject {
             }
         }
         
-        audioPlayerNode.play()
+        if !audioPlayerNode.isPlaying {
+            audioPlayerNode.play()
+        }
         isPlaying = true
+        
+        print("🔊 Playing directional sound at azimuth: \(azimuth)°, distance: \(clampedDistance)m, position: (\(x), 0, \(z))")
     }
     
     func playConfirmationSound() {
         guard let buffer = audioBuffer else { return }
         
+        stopSound()
+        
         audioPlayerNode.position = AVAudio3DPoint(x: 0, y: 0, z: -1)
+        
+        // Ensure audio engine is running
+        if !audioEngine.isRunning {
+            do {
+                try audioEngine.start()
+            } catch {
+                print("🔊 Failed to start audio engine: \(error)")
+                return
+            }
+        }
         
         audioPlayerNode.scheduleBuffer(buffer, at: nil, options: []) { [weak self] in
             DispatchQueue.main.async {
@@ -99,7 +129,9 @@ class SpatialAudioManager: ObservableObject {
             }
         }
         
-        audioPlayerNode.play()
+        if !audioPlayerNode.isPlaying {
+            audioPlayerNode.play()
+        }
         isPlaying = true
     }
     

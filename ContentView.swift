@@ -4,6 +4,7 @@ struct ContentView: View {
     @StateObject private var objectDetectionManager = ObjectDetectionManager()
     @StateObject private var spatialAudioManager = SpatialAudioManager()
     @StateObject private var speechRecognitionManager = SpeechRecognitionManager()
+    @StateObject private var arkitManager = ARKitManager()
     @State private var searchText = ""
     @State private var isSearching = false
     @State private var showCamera = false
@@ -75,10 +76,12 @@ struct ContentView: View {
                     CameraView(
                         objectDetectionManager: objectDetectionManager,
                         spatialAudioManager: spatialAudioManager,
+                        arkitManager: arkitManager,
                         targetObject: searchText,
                         onObjectDetected: { object in
-                            statusMessage = "Found \(object.label) at \(Int(object.azimuth))° \(object.azimuth > 0 ? "right" : "left")"
-                            print("🎯 OBJECT DETECTED! Label: \(object.label), Azimuth: \(object.azimuth)°, Distance: \(object.distance)")
+                            let distanceText = String(format: "%.1f", object.distance)
+                            statusMessage = "Found \(object.label) at \(Int(object.azimuth))° \(object.azimuth > 0 ? "right" : "left"), \(distanceText)m away"
+                            print("🎯 OBJECT DETECTED! Label: \(object.label), Azimuth: \(object.azimuth)°, Distance: \(object.distance)m, Elevation: \(object.elevation)°")
                             spatialAudioManager.playDirectionalSound(azimuth: object.azimuth, distance: object.distance)
                         }
                     )

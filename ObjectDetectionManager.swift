@@ -8,39 +8,27 @@ class ObjectDetectionManager: ObservableObject {
     
     private var visionModel: VNCoreMLModel?
     private let sequenceHandler = VNSequenceRequestHandler()
+    private let targetMatcher = TargetMatcher()
     
     init() {
         setupObjectDetection()
     }
     
     private func setupObjectDetection() {
-        guard let modelURL = Bundle.main.url(forResource: "YOLOv3", withExtension: "mlmodelc") else {
-            setupClassificationModel()
-            return
-        }
-        
-        do {
-            let model = try MobileNetV2FP16(contentsOf: modelURL)
-            visionModel = try VNCoreMLModel(for: model.model)
-        } catch {
-            print("Failed to load YOLO model: \(error)")
-            setupClassificationModel()
-        }
-    }
-    
-    private func setupClassificationModel() {
-        guard let modelURL = Bundle.main.url(forResource: "MobileNetV2", withExtension: "mlmodelc") else {
-            print("MobileNetV2 model not found - using built-in classification")
+        guard let modelURL = Bundle.main.url(forResource: "yolov5s", withExtension: "mlmodelc") else {
+            print("FATAL: YOLOv5 model not found")
             return
         }
         
         do {
             let model = try MLModel(contentsOf: modelURL)
             visionModel = try VNCoreMLModel(for: model)
+            print("✅ YOLOv5 model loaded successfully")
         } catch {
-            print("Failed to load MobileNetV2 model: \(error)")
+            print("Failed to load YOLOv5 model: \(error)")
         }
     }
+    
     
     func detectObjects(in pixelBuffer: CVPixelBuffer, targetObject: String, completion: @escaping ([DetectedObject]) -> Void) {
         if let model = visionModel {
@@ -63,7 +51,8 @@ class ObjectDetectionManager: ObservableObject {
                 completion([])
             }
         } else {
-            useBuiltInClassification(pixelBuffer: pixelBuffer, targetObject: targetObject, completion: completion)
+            print("⚠️ No vision model available, skipping detection")
+            completion([])
         }
     }
     
@@ -92,25 +81,17 @@ class ObjectDetectionManager: ObservableObject {
             return
         }
         
-        var detectedObjects: [DetectedObject] = []
+        var allDetectedObjects: [DetectedObject] = []
         
+        // First, collect all detected objects regardless of target matching
         for observation in results {
             if let objectObservation = observation as? VNRecognizedObjectObservation {
                 let topLabel = objectObservation.labels.first
-                if let label = topLabel,
-                   label.confidence > 0.3,
-                   isMatchingTarget(label.identifier, target: targetObject) {
-                    
-                    print("🎯 Object Detection - Found: \(label.identifier) (confidence: \(label.confidence)) matching target: \(targetObject)")
+                if let label = topLabel, label.confidence > 0.15 { // Lower threshold to catch more objects for NLP matching
                     
                     let boundingBox = objectObservation.boundingBox
-                    let centerX = boundingBox.midX
-                    let centerY = boundingBox.midY
-                    
-                    let azimuth = calculateAzimuth(from: centerX)
+                    let azimuth = calculateAzimuth(from: boundingBox.midX)
                     let distance = estimateDistance(from: boundingBox)
-                    
-                    print("🎯 Object Position - Azimuth: \(azimuth)°, Distance: \(distance)")
                     
                     let detectedObject = DetectedObject(
                         label: label.identifier,
@@ -120,13 +101,14 @@ class ObjectDetectionManager: ObservableObject {
                         distance: distance
                     )
                     
-                    detectedObjects.append(detectedObject)
+                    allDetectedObjects.append(detectedObject)
+                    print("🎯 YOLOv5 Raw Detection - \(label.identifier) (conf: \(label.confidence))")
                 }
+            } else if let coreMLObservation = observation as? VNCoreMLFeatureValueObservation {
+                print("🎯 Raw YOLOv5 Output - Processing feature values...")
+                processYOLOv5Output(coreMLObservation, targetObject: targetObject, detectedObjects: &allDetectedObjects)
             } else if let classificationObservation = observation as? VNClassificationObservation {
-                if classificationObservation.confidence > 0.3,
-                   isMatchingTarget(classificationObservation.identifier, target: targetObject) {
-                    
-                    print("🎯 Classification - Found: \(classificationObservation.identifier) (confidence: \(classificationObservation.confidence)) matching target: \(targetObject)")
+                if classificationObservation.confidence > 0.2 { // Lower threshold for NLP matching
                     
                     let detectedObject = DetectedObject(
                         label: classificationObservation.identifier,
@@ -136,61 +118,34 @@ class ObjectDetectionManager: ObservableObject {
                         distance: 1.0
                     )
                     
-                    print("🎯 Classification Position - Center (no spatial info available)")
-                    detectedObjects.append(detectedObject)
+                    allDetectedObjects.append(detectedObject)
+                    print("🎯 Classification Raw Detection - \(classificationObservation.identifier) (conf: \(classificationObservation.confidence))")
                 }
             }
         }
         
+        // Now use NLP-based matching to find relevant objects
+        print("🧠 NLP Matching - Found \(allDetectedObjects.count) raw detections, matching against target: '\(targetObject)'")
+        let matchedObjects = targetMatcher.findRelevantObjects(targetString: targetObject, detectedObjects: allDetectedObjects)
+        
+        // Extract the DetectedObject from MatchedObject results
+        let relevantDetectedObjects = matchedObjects.map { matchedObject in
+            print("🧠 NLP Match - \(matchedObject.object.label) (relevance: \(String(format: "%.3f", matchedObject.relevanceScore)))")
+            return matchedObject.object
+        }
+        
         DispatchQueue.main.async {
-            completion(detectedObjects)
+            completion(relevantDetectedObjects)
         }
     }
     
-    private func isMatchingTarget(_ detected: String, target: String) -> Bool {
-        let detectedLower = detected.lowercased()
-        let targetWords = target.lowercased().components(separatedBy: " ")
-        
-        print("🔍 Matching Check - Detected: '\(detected)', Target: '\(target)'")
-        
-        for word in targetWords {
-            if detectedLower.contains(word) {
-                print("🔍 Direct Match Found - Word: '\(word)' in '\(detected)'")
-                return true
-            }
-        }
-        
-        let synonyms = getSynonyms(for: target.lowercased())
-        for synonym in synonyms {
-            if detectedLower.contains(synonym) {
-                print("🔍 Synonym Match Found - Synonym: '\(synonym)' in '\(detected)'")
-                return true
-            }
-        }
-        
-        print("🔍 No Match Found - '\(detected)' does not match '\(target)'")
-        return false
+    private func processYOLOv5Output(_ observation: VNCoreMLFeatureValueObservation, targetObject: String, detectedObjects: inout [DetectedObject]) {
+        // YOLOv5 typically outputs raw detection arrays that need post-processing
+        // This is a simplified version - actual YOLOv5 output processing is more complex
+        print("🎯 YOLOv5 raw output processing not fully implemented - using standard object recognition")
     }
     
-    private func getSynonyms(for object: String) -> [String] {
-        let synonymMap: [String: [String]] = [
-            "car": ["vehicle", "automobile", "sedan", "suv", "truck"],
-            "honda": ["honda", "civic", "accord", "crv"],
-            "black": ["dark", "black"],
-            "suv": ["suv", "sport utility", "crossover"]
-        ]
-        
-        var synonyms: [String] = []
-        let words = object.components(separatedBy: " ")
-        
-        for word in words {
-            if let wordSynonyms = synonymMap[word] {
-                synonyms.append(contentsOf: wordSynonyms)
-            }
-        }
-        
-        return synonyms
-    }
+    // Legacy matching functions removed - now using NLP-based TargetMatcher
     
     private func calculateAzimuth(from normalizedX: CGFloat) -> Float {
         let fieldOfView: Float = 60.0
@@ -212,4 +167,14 @@ struct DetectedObject: Identifiable {
     let boundingBox: CGRect
     let azimuth: Float
     let distance: Float
+    let elevation: Float
+    
+    init(label: String, confidence: Float, boundingBox: CGRect, azimuth: Float, distance: Float, elevation: Float = 0) {
+        self.label = label
+        self.confidence = confidence
+        self.boundingBox = boundingBox
+        self.azimuth = azimuth
+        self.distance = distance
+        self.elevation = elevation
+    }
 }
