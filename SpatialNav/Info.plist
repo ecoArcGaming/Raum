@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string></string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to detect objects for spatial navigation guidance.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app uses the microphone for voice commands and spatial audio guidance.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app uses speech recognition to understand voice commands for finding objects.</string>
+	<key>UIAccessibilitySupportsFullKeyboardAccess</key>
+	<true/>
+	<key>NSMotionUsageDescription</key>
+	<string>This app uses head tracking for consistent spatial audio</string>
+	<key>UIAccessibilityPrefersCrossFadeTransitions</key>
+	<true/>
+</dict>
+</plist>
