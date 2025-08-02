@@ -23,7 +23,7 @@ class ObjectDetectionManager: ObservableObject {
         do {
             let model = try MLModel(contentsOf: modelURL)
             visionModel = try VNCoreMLModel(for: model)
-            print("✅ YOLOv5 model loaded successfully")
+            print("YOLOv5 model loaded")
         } catch {
             print("Failed to load YOLOv5 model: \(error)")
         }
@@ -51,7 +51,7 @@ class ObjectDetectionManager: ObservableObject {
                 completion([])
             }
         } else {
-            print("⚠️ No vision model available, skipping detection")
+            print("No vision model available!")
             completion([])
         }
     }
@@ -102,10 +102,9 @@ class ObjectDetectionManager: ObservableObject {
                     )
                     
                     allDetectedObjects.append(detectedObject)
-                    print("🎯 YOLOv5 Raw Detection - \(label.identifier) (conf: \(label.confidence))")
+                    print("Detection - \(label.identifier) (conf: \(label.confidence))")
                 }
             } else if let coreMLObservation = observation as? VNCoreMLFeatureValueObservation {
-                print("🎯 Raw YOLOv5 Output - Processing feature values...")
                 processYOLOv5Output(coreMLObservation, targetObject: targetObject, detectedObjects: &allDetectedObjects)
             } else if let classificationObservation = observation as? VNClassificationObservation {
                 if classificationObservation.confidence > 0.2 { // Lower threshold for NLP matching
@@ -119,18 +118,18 @@ class ObjectDetectionManager: ObservableObject {
                     )
                     
                     allDetectedObjects.append(detectedObject)
-                    print("🎯 Classification Raw Detection - \(classificationObservation.identifier) (conf: \(classificationObservation.confidence))")
+                    print("Classification - \(classificationObservation.identifier) (conf: \(classificationObservation.confidence))")
                 }
             }
         }
         
         // Now use NLP-based matching to find relevant objects
-        print("🧠 NLP Matching - Found \(allDetectedObjects.count) raw detections, matching against target: '\(targetObject)'")
+        print("Target Matching - Found \(allDetectedObjects.count) raw detections, matching against target: '\(targetObject)'")
         let matchedObjects = targetMatcher.findRelevantObjects(targetString: targetObject, detectedObjects: allDetectedObjects)
         
         // Extract the DetectedObject from MatchedObject results
         let relevantDetectedObjects = matchedObjects.map { matchedObject in
-            print("🧠 NLP Match - \(matchedObject.object.label) (relevance: \(String(format: "%.3f", matchedObject.relevanceScore)))")
+            print("Target Match - \(matchedObject.object.label) (relevance: \(String(format: "%.3f", matchedObject.relevanceScore)))")
             return matchedObject.object
         }
         
@@ -140,12 +139,14 @@ class ObjectDetectionManager: ObservableObject {
     }
     
     private func processYOLOv5Output(_ observation: VNCoreMLFeatureValueObservation, targetObject: String, detectedObjects: inout [DetectedObject]) {
-        // YOLOv5 typically outputs raw detection arrays that need post-processing
-        // This is a simplified version - actual YOLOv5 output processing is more complex
-        print("🎯 YOLOv5 raw output processing not fully implemented - using standard object recognition")
+        // this is a fallback
+        guard let multiArray = observation.featureValue.multiArrayValue else {
+            print("YOLOv5: No multi-array output found")
+            return
+        }
     }
     
-    // Legacy matching functions removed - now using NLP-based TargetMatcher
+
     
     private func calculateAzimuth(from normalizedX: CGFloat) -> Float {
         let fieldOfView: Float = 60.0

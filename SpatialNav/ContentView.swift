@@ -116,10 +116,10 @@ struct ContentView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 if !speechRecognitionManager.recognizedText.isEmpty {
                     searchText = speechRecognitionManager.recognizedText
-                    print("🔊 Voice Command Processed: '\(self.searchText)'")
+                    print("Voice Processed: '\(self.searchText)'")
                     startSearch()
                 } else {
-                    print("🔊 No speech detected")
+                    print("No speech detected")
                     statusMessage = "No speech detected. Try again."
                 }
             }
@@ -129,7 +129,7 @@ struct ContentView: View {
     private func startSearch() {
         isSearching = true
         statusMessage = "Searching for \(searchText)..."
-        print("🔍 Search Started - Looking for: '\(searchText)'")
+        print("Looking for: '\(searchText)'")
     }
     
     private func stopSearch() {

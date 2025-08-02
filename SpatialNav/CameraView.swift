@@ -45,12 +45,11 @@ struct CameraView: UIViewRepresentable {
                 guard let self = self else { return }
                 
                 for object in objects {
-                    // Use ARKit to get real 3D position if available
+                    // Use ARKit to get 3D pos
                     if let arkitManager = self.arkitManager,
                        arkitManager.isSessionRunning,
                        let position3D = arkitManager.get3DPosition(for: object.boundingBox, in: imageSize) {
                         
-                        // Create new object with ARKit-derived position
                         let enhancedObject = DetectedObject(
                             label: object.label,
                             confidence: object.confidence,
@@ -62,7 +61,6 @@ struct CameraView: UIViewRepresentable {
                         
                         self.onObjectDetected?(enhancedObject)
                     } else {
-                        // Fallback to original object with estimated position
                         self.onObjectDetected?(object)
                     }
                     break
@@ -132,7 +130,7 @@ class CameraPreviewView: UIView {
                 captureSession.startRunning()
             }
             
-            // Start ARKit session if available
+            // Start ARKit 
             arkitManager?.startSession()
             
         } catch {
@@ -155,7 +153,7 @@ extension CameraPreviewView: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         
-        // Get image size for ARKit calculations
+        // Get image size 
         let imageWidth = CVPixelBufferGetWidth(pixelBuffer)
         let imageHeight = CVPixelBufferGetHeight(pixelBuffer)
         let imageSize = CGSize(width: imageWidth, height: imageHeight)

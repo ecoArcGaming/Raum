@@ -1,7 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreAudio
-import CoreMotion // Import CoreMotion for head tracking
+import CoreMotion //  CoreMotion for head tracking
 
 class SpatialAudioManager: ObservableObject {
     private var audioEngine: AVAudioEngine
@@ -11,10 +11,10 @@ class SpatialAudioManager: ObservableObject {
 
     // Head Tracking
     private var headphoneMotionManager: CMHeadphoneMotionManager?
-    private let motionUpdateQueue = OperationQueue() // Dedicated queue for motion updates
+    private let motionUpdateQueue = OperationQueue() 
 
     @Published var isPlaying = false
-    @Published var headTrackingAvailable: Bool = false // To inform UI if head tracking is active
+    @Published var headTrackingAvailable: Bool = false 
 
     // Store the format used for the player node
     private var playerNodeFormat: AVAudioFormat?
@@ -26,18 +26,18 @@ class SpatialAudioManager: ObservableObject {
         audioEnvironment = AVAudioEnvironmentNode()
         headphoneMotionManager = CMHeadphoneMotionManager()
         
-        // Check if head tracking is available (but don't check isDeviceMotionActive during init)
+        // Check if head tracking is available 
         headTrackingAvailable = headphoneMotionManager?.isDeviceMotionAvailable ?? false
         if !headTrackingAvailable {
-            print("🎧 Head tracking not available on this device/headphone combination.")
+            print("Head tracking not available")
         }
         
         motionUpdateQueue.maxConcurrentOperationCount = 1
         motionUpdateQueue.qualityOfService = .userInteractive
 
-        setupAudioSession() // Set up session first
-        generateBeepTone() // Generate the audio buffer
-        setupAudioEngine() // Then set up the engine
+        setupAudioSession()
+        generateBeepTone()
+        setupAudioEngine()
         startHeadTracking()
     }
 
@@ -45,21 +45,18 @@ class SpatialAudioManager: ObservableObject {
         do {
             let audioSession = AVAudioSession.sharedInstance()
             
-            // Set category and options
-            try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowBluetoothA2DP])
+            //  try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowBluetoothA2DP])
             try audioSession.setActive(true)
-            print("🔊 Audio session configured successfully")
+            print("Audio session configured")
         } catch {
             print("Audio session setup failed: \(error.localizedDescription)")
         }
     }
 
     private func setupAudioEngine() {
-        // Attach nodes to the engine
         audioEngine.attach(audioPlayerNode)
         audioEngine.attach(audioEnvironment)
 
-        // HRTFHQ rendering
         audioEnvironment.renderingAlgorithm = .HRTFHQ
 
         // Set up listener position and orientation
@@ -69,33 +66,31 @@ class SpatialAudioManager: ObservableObject {
             up: AVAudio3DVector(x: 0, y: 1, z: 0)        // Y is up
         )
 
-        // Connect the nodes after buffer is generated
         connectAudioNodes()
     }
 
     private func generateBeepTone() {
         let sampleRate: Double = 44100
-        let frequency: Double = 660 // A bit higher pitch for better localization potentially
-        let duration: Double = 0.25 // Shorter, more "point-like" beep
+        let frequency: Double = 660 // A bit higher pitch for better localization, tune? 
+        let duration: Double = 0.25 // also tune this 
         let frameCount = AVAudioFrameCount(sampleRate * duration)
 
-        // Explicitly MONO format for the player node's source
+        //  mono format 
         guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
               let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
             print("Error: Could not create audio format or buffer for beep tone.")
             return
         }
-        self.playerNodeFormat = format // Store for connections
+        self.playerNodeFormat = format 
 
         buffer.frameLength = frameCount
         let channelData = buffer.floatChannelData![0]
-        let attackReleaseFrames = AVAudioFrameCount(sampleRate * 0.01) // Short 10ms attack/release
+        let attackReleaseFrames = AVAudioFrameCount(sampleRate * 0.01) // 10ms attack/release, tune? 
 
         for frame in 0..<Int(frameCount) {
             let time = Double(frame) / sampleRate
-            let amplitudeValue = sin(2.0 * Double.pi * frequency * time) * 0.4 // Slightly lower amplitude
+            let amplitudeValue = sin(2.0 * Double.pi * frequency * time) * 0.4 //  lower amplitude, tune? 
 
-            // Simple linear attack/release envelope
             var envelope: Float = 1.0
             if frame < attackReleaseFrames { // Attack
                 envelope = Float(frame) / Float(attackReleaseFrames)
@@ -114,31 +109,28 @@ class SpatialAudioManager: ObservableObject {
             return
         }
         
-        // Connect player node (mono) to environment node
         audioEngine.connect(audioPlayerNode, to: audioEnvironment, format: playerFormat)
         
         // Connect environment node (now stereo, spatialized) to main mixer
         // Using nil format here lets the engine determine the appropriate stereo format.
-        audioEngine.connect(audioEnvironment, to: audioEngine.mainMixerNode, format: nil)
-        
-        // Prepare the engine
+        audioEngine.connect(audioEnvironment, to: audioEngine.mainMixerNode, format: nil) 
         audioEngine.prepare()
         isEngineSetup = true
-        print("🔊 Audio engine prepared successfully")
+        print("Audio engine prepared")
     }
 
     private func startAudioEngineIfNeeded() {
         guard isEngineSetup else {
-            print("🔊 Audio engine not set up yet")
+            print("Audio engine not set up yet")
             return
         }
         
         if !audioEngine.isRunning {
             do {
                 try audioEngine.start()
-                print("🔊 Audio engine started successfully")
+                print("Audio engine started")
             } catch {
-                print("🔊 Failed to start audio engine: \(error.localizedDescription)")
+                print("Failed to start audio engine: \(error.localizedDescription)")
             }
         }
     }
@@ -146,26 +138,26 @@ class SpatialAudioManager: ObservableObject {
     // MARK: - Head Tracking
     func startHeadTracking() {
         guard let manager = headphoneMotionManager, manager.isDeviceMotionAvailable else {
-            print("🎧 Headphone motion manager not available or device motion not available.")
+            print("Headphone motion manager not available")
             self.headTrackingAvailable = false
             return
         }
 
         guard !manager.isDeviceMotionActive else {
-            print("🎧 Headphone motion updates are already active.")
+            print("Headphone motion updates are already active.")
             return
         }
         
-        print("🎧 Attempting to start head tracking...")
+        print("Attempting to start head tracking...")
         manager.startDeviceMotionUpdates(to: motionUpdateQueue) { [weak self] (motion, error) in
             guard let self = self, let motion = motion, error == nil else {
                 if let error = error {
-                    print("🎧 Headphone motion update error: \(error.localizedDescription)")
+                    print("Headphone motion update error: \(error.localizedDescription)")
                     // Handle different types of errors
                     if (error as NSError).code == CMErrorDeviceRequiresMovement.rawValue ||
                        (error as NSError).code == CMErrorTrueNorthNotAvailable.rawValue {
                         // These are common errors that might resolve.
-                        print("🎧 Transient head tracking error, continuing...")
+                        print("Transient head tracking error, continuing...")
                     } else {
                         // More critical error, might stop head tracking.
                         self?.stopHeadTracking(clearAvailability: true)
@@ -195,7 +187,7 @@ class SpatialAudioManager: ObservableObject {
                 )
                 if !self.headTrackingAvailable {
                     self.headTrackingAvailable = true
-                    print("🎧 Head tracking now active")
+                    print("Head tracking now active")
                 }
             }
         }
@@ -203,7 +195,7 @@ class SpatialAudioManager: ObservableObject {
 
     func stopHeadTracking(clearAvailability: Bool = false) {
         if let manager = headphoneMotionManager, manager.isDeviceMotionActive {
-            print("🎧 Stopping head tracking updates.")
+            print("Stopping head tracking updates.")
             manager.stopDeviceMotionUpdates()
         }
         if clearAvailability {
@@ -222,9 +214,9 @@ class SpatialAudioManager: ObservableObject {
         startAudioEngineIfNeeded()
         
         guard audioEngine.isRunning else {
-            print("🔊 Audio engine failed to start")
+            print("Audio engine failed to start")
             return
-        }
+        }   
         
         let azimuthRadians = azimuth * .pi / 180.0
         let elevationRadians = elevation * .pi / 180.0
@@ -260,19 +252,19 @@ class SpatialAudioManager: ObservableObject {
             self.isPlaying = true
         }
         
-        print("🔊 Playing sound at Az: \(azimuth)°, El: \(elevation)°, Dist: \(clampedDistance)m")
+        print("Sound at Az: \(azimuth)°, El: \(elevation)°, Dist: \(clampedDistance)m")
     }
 
     func playConfirmationSound() {
         guard let buffer = audioBuffer else {
-            print("Error: Audio buffer not available for confirmation sound.")
+            print("Error: Audio buffer not available")
             return
         }
 
         startAudioEngineIfNeeded()
         
         guard audioEngine.isRunning else {
-            print("🔊 Audio engine failed to start for confirmation sound")
+            print("Audio engine failed to start")
             return
         }
         
@@ -281,7 +273,7 @@ class SpatialAudioManager: ObservableObject {
             audioPlayerNode.stop()
         }
 
-        audioPlayerNode.position = AVAudio3DPoint(x: 0, y: 0, z: -0.5) // Close in front
+        audioPlayerNode.position = AVAudio3DPoint(x: 0, y: 0, z: -0.5) // Close in front, tune? 
         audioPlayerNode.volume = 0.8
 
         audioPlayerNode.scheduleBuffer(buffer, at: nil, options: []) { [weak self] in
@@ -296,7 +288,7 @@ class SpatialAudioManager: ObservableObject {
             self.isPlaying = true
         }
         
-        print("🔊 Playing confirmation sound")
+        print("Playing confirmation sound")
     }
 
     func stopSound() {
@@ -313,6 +305,6 @@ class SpatialAudioManager: ObservableObject {
         if audioEngine.isRunning {
             audioEngine.stop()
         }
-        print("🔊 SpatialAudioManager deinitialized.")
+        print("SpatialAudioManager deinitialized.")
     }
 }
