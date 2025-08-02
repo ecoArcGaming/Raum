@@ -63,7 +63,7 @@ class SpeechRecognitionManager: ObservableObject {
                 
                 if let result = result {
                     let transcribedText = result.bestTranscription.formattedString
-                    print("🎤 Speech Recognition - Partial: \(transcribedText)")
+                    print("Speech Recognition - Partial: \(transcribedText)")
                     
                     DispatchQueue.main.async {
                         self?.recognizedText = transcribedText
@@ -71,12 +71,12 @@ class SpeechRecognitionManager: ObservableObject {
                     isFinal = result.isFinal
                     
                     if isFinal {
-                        print("🎤 Speech Recognition - FINAL: \(transcribedText)")
+                        print("Speech Recognition - FINAL: \(transcribedText)")
                     }
                 }
                 
                 if let error = error {
-                    print("🎤 Speech Recognition Error: \(error)")
+                    print("Speech Recognition Error: \(error)")
                 }
                 
                 if error != nil || isFinal {
@@ -88,9 +88,9 @@ class SpeechRecognitionManager: ObservableObject {
                     
                     DispatchQueue.main.async {
                         self?.isRecording = false
-                        print("🎤 Speech Recording Stopped")
+                        print("Speech Recording Stopped")
                     }
-                }
+                }   
             }
             
             let recordingFormat = inputNode.outputFormat(forBus: 0)
@@ -103,10 +103,10 @@ class SpeechRecognitionManager: ObservableObject {
             
             isRecording = true
             recognizedText = ""
-            print("🎤 Speech Recording Started")
+            print("Speech Recording Started")
             
         } catch {
-            print("🎤 Failed to start recording: \(error)")
+            print("Failed to start recording: \(error)")
         }
     }
     

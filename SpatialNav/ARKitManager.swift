@@ -17,7 +17,7 @@ class ARKitManager: NSObject, ObservableObject {
     
     func startSession() {
         guard ARWorldTrackingConfiguration.isSupported else {
-            print("📱 ARKit not supported on this device")
+            print("ARKit not supported on this device")
             return
         }
         
@@ -27,18 +27,18 @@ class ARKitManager: NSObject, ObservableObject {
         
         arSession.run(configuration)
         isSessionRunning = true
-        print("📱 ARKit session started")
+        print("ARKit session started")
     }
     
     func pauseSession() {
         arSession.pause()
         isSessionRunning = false
-        print("📱 ARKit session paused")
+        print("RKit session paused")
     }
     
     func get3DPosition(for boundingBox: CGRect, in imageSize: CGSize) -> (distance: Float, azimuth: Float, elevation: Float)? {
         guard let frame = currentFrame else {
-            print("📱 No current AR frame available")
+            print("No current AR frame available")
             return nil
         }
         
@@ -47,7 +47,7 @@ class ARKitManager: NSObject, ObservableObject {
         let centerY = boundingBox.midY * imageSize.height
         let screenPoint = CGPoint(x: centerX, y: centerY)
         
-        print("📱 ARKit - Screen point: (\(centerX), \(centerY))")
+        print("Screen point: (\(centerX), \(centerY))")
         
         // Perform hit test to find 3D world position
         let hitTestResults = frame.hitTest(screenPoint, types: [.estimatedHorizontalPlane, .estimatedVerticalPlane, .existingPlane, .featurePoint])
@@ -71,14 +71,14 @@ class ARKitManager: NSObject, ObservableObject {
             let deltaY = worldPosition.y - cameraPos.y
             let horizontalDistance = sqrt(deltaX * deltaX + deltaZ * deltaZ)
             let elevation = atan2(deltaY, horizontalDistance) * 180 / Float.pi
-            
-            print("📱 ARKit - 3D Position: (\(worldPosition.x), \(worldPosition.y), \(worldPosition.z))")
-            print("📱 ARKit - Distance: \(distance)m, Azimuth: \(azimuth)°, Elevation: \(elevation)°")
+            // TODO:remove all the prints 
+            print("3D Position: (\(worldPosition.x), \(worldPosition.y), \(worldPosition.z))")
+            print("Distance: \(distance)m, Azimuth: \(azimuth)°, Elevation: \(elevation)°")
+            print("Camera Position: (\(cameraPos.x), \(cameraPos.y), \(cameraPos.z))")
             
             return (distance: distance, azimuth: azimuth, elevation: elevation)
         } else {
-            // Fallback: estimate based on bounding box size and position
-            print("📱 ARKit - No hit test result, using fallback estimation")
+            print("No hit test result, using fallback estimation")
             return estimatePositionFromBoundingBox(boundingBox)
         }
     }
@@ -97,7 +97,7 @@ class ARKitManager: NSObject, ObservableObject {
         let verticalFOV: Float = 45.0
         let elevation = Float(0.5 - boundingBox.midY) * verticalFOV
         
-        print("📱 ARKit Fallback - Distance: \(clampedDistance)m, Azimuth: \(azimuth)°, Elevation: \(elevation)°")
+        print("Distance: \(clampedDistance)m, Azimuth: \(azimuth)°, Elevation: \(elevation)°")
         
         return (distance: clampedDistance, azimuth: azimuth, elevation: elevation)
     }
@@ -113,16 +113,16 @@ extension ARKitManager: ARSessionDelegate {
     }
     
     func session(_ session: ARSession, didFailWithError error: Error) {
-        print("📱 ARKit session failed: \(error)")
+        print("ARKit session failed: \(error)")
     }
     
     func sessionWasInterrupted(_ session: ARSession) {
-        print("📱 ARKit session was interrupted")
+        print("ARKit session was interrupted")
         isSessionRunning = false
     }
     
     func sessionInterruptionEnded(_ session: ARSession) {
-        print("📱 ARKit session interruption ended")
+        print("ARKit session interruption ended")
         isSessionRunning = true
     }
 }

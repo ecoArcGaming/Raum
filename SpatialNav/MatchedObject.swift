@@ -43,7 +43,7 @@ class TargetMatcher {
         var matchedObjects: [MatchedObject] = []
 
         for detectedObject in detectedObjects {
-            // Use NLEmbedding's direct distance computation between strings
+            // Use NLEmbedding to get dist 
             let distance = embeddingModel.distance(between: trimmedTargetString.lowercased(),
                                                  and: detectedObject.label.lowercased(),
                                                  distanceType: .cosine)
@@ -51,7 +51,7 @@ class TargetMatcher {
             // Convert distance to similarity score (higher is better)
             // Cosine similarity = 1 - cosine_distance
             // from -1 to 1, where 1 = identical, 0 = orthogonal, -1 = opposite
-            // scaled by YOLO confidence
+            // scaled by YOLO confidence, tune this more?
            
             let finalRelevance = (1.0 - distance) * Double(detectedObject.confidence)
 
@@ -62,7 +62,7 @@ class TargetMatcher {
             }
         }
 
-        // Sort by relevance score, highest first
+        //  highest first
         return matchedObjects.sorted { $0.relevanceScore > $1.relevanceScore }
     }
 }
